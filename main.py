@@ -13,6 +13,7 @@ class MainApp(tk.Frame): # главное окно
         self.init_app()
         self.data_table_record()
 
+
     def init_app(self):
         self.table_frame = tk.Frame()
         self.table_frame.place(x=35, y=40)
