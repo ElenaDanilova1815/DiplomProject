@@ -4,37 +4,42 @@ from config import host, user, password, db_name, port
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
+from datetime import datetime
 
 
 class MainApp(tk.Frame): # главное окно
     def __init__(self, root):
         super().__init__(root)
         self.db = db
+#        self.autorization = autorization
+        self.init_exit()
         self.init_app()
         self.data_table_record()
+        self.data_table_history_record()
 
 
     def init_app(self):
-        self.table_frame = tk.Frame()
-        self.table_frame.place(x=35, y=40)
-        self.label_history = tk.Label(text="История")
-        self.label_history.place(x=35, y=10)
+        self.notebook = ttk.Notebook()
+        self.notebook.place(height=500, width=1020)
+        self.table_user_frame = tk.Frame(self.notebook)
+        self.table_user_frame.place(x=35, y=40)
+        self.table_history_frame = tk.Frame(self.notebook)
+        self.table_history_frame.place(x=35, y=40)
+        self.notebook.add(self.table_history_frame, text='История')
+        self.notebook.add(self.table_user_frame, text='Пользователи')
 
-        self.button_add = tk.Button(text="Добавить", command=self.open_dialog_add)
-        self.button_add.place(x=35, y=380)
+        self.button_add = tk.Button(self.table_user_frame, text="Добавить", command=self.open_dialog_add)
+        self.button_add.place(x=35, y=420)
 
-        self.button_update = tk.Button(text="Редактировать", command=self.open_dialog_update)
-        self.button_update.place(x=110, y=380)
+        self.button_update = tk.Button(self.table_user_frame, text="Редактировать", command=self.open_dialog_update)
+        self.button_update.place(x=110, y=420)
 
-        self.button_delete = tk.Button(text="Удалить", command=self.data_table_delete)
-        self.button_delete.place(x=215, y=380)
+        self.button_delete = tk.Button(self.table_user_frame, text="Удалить", command=self.data_table_delete)
+        self.button_delete.place(x=215, y=420)
 
-        self.exi_button = tk.Button(text='Выход', command=self.quit)
-        self.exi_button.place(x=950, y=550)
-
-        self.columns = ("ID", "Name", "State lic num", "Base")
-        self.data_table = ttk.Treeview(self.table_frame, columns=self.columns, show="headings", height=15)
-        self.data_table.pack(fill=tk.BOTH, expand=1)
+        self.columns1 = ("ID", "Name", "State lic num", "Base")
+        self.data_table = ttk.Treeview(self.table_user_frame, columns=self.columns1, show="headings", height=15)
+        self.data_table.place(width=1020, height=400)
         self.data_table.heading("ID", text="Номер", anchor=tk.W)
         self.data_table.column("#1", width=100, stretch=tk.FALSE)
         self.data_table.heading("Name", text="ФИО", anchor=tk.W)
@@ -44,15 +49,58 @@ class MainApp(tk.Frame): # главное окно
         self.data_table.heading("Base", text="Основание", anchor=tk.W)
         self.data_table.column("#4", width=300)
 
+        self.columns2 = ("ID", "Name", "Action", "Time")
+        self.data_table_history = ttk.Treeview(self.table_history_frame, columns=self.columns2, show="headings", height=15)
+        self.data_table_history.place(width=1020, height=400)
+        self.data_table_history.heading("ID", text="Номер", anchor=tk.W)
+        self.data_table_history.column("#1", width=100, stretch=tk.FALSE)
+        self.data_table_history.heading("Name", text="ФИО", anchor=tk.W)
+        self.data_table_history.column("#2", width=300, stretch=tk.FALSE)
+        self.data_table_history.heading("Action", text="Действие", anchor=tk.W)
+        self.data_table_history.column("#3", width=400, stretch=tk.FALSE)
+        self.data_table_history.heading("Time", text="Время", anchor=tk.W)
+        self.data_table_history.column("#4", width=510, stretch=tk.FALSE)
+
+
     def record(self, name, num, base):
         self.db.data_table_insert(name, num, base)
         self.data_table_record()
+        self.data_table_history_record()
+
+    def record2(self):
+        self.data_table_history_record()
+        self.data_table_history_entry_insert()
+
 
     def data_table_record(self):  # вставка данных из бд в таблицу
         self.db.cur.execute(
             "SELECT id_admission, name,state_license_num, base FROM admission ORDER BY id_admission ASC")
         [self.data_table.delete(i) for i in self.data_table.get_children()]
         [self.data_table.insert('', tk.END, values=row) for row in self.db.cur.fetchall()]
+
+    def data_table_history_record(self):
+        self.db.cur.execute(
+            "SELECT id_act, name, action, time FROM history_test ORDER BY id_act ASC")
+        [self.data_table_history.delete(i) for i in self.data_table_history.get_children()]
+        [self.data_table_history.insert('', tk.END, values=row) for row in self.db.cur.fetchall()]
+
+    def data_table_history_entry_insert(self):
+      #  self.au.init_button_autorization()
+        self.data_table_history_record()
+
+    #def data_table_history_exit_insert(self):
+     #   self.action_exit = "Пользователь вышел из системы"
+     #   self.time = datetime.now()
+
+     #   self.query = (
+        #        "INSERT INTO history_test " "(action, time) " "VALUES ('%(action)s', '%(time)s')" % {
+#
+       #     'action': self.action_exit,
+      #      'time': self.time
+      #  }
+     #   )
+    #    self.db.cur.execute(self.query)
+     #   self.db.conn.commit()
 
     def data_table_update(self, name, num, base):
         self.db.cur.execute("UPDATE admission SET name='%(name)s', state_license_num='%(num)s', base='%(base)s' WHERE "
@@ -74,6 +122,12 @@ class MainApp(tk.Frame): # главное окно
 
     def open_dialog_update(self):
         Update()
+    def init_exit(self): #обработка события нажатия на кнопку "Выход"
+        self.exi_button = tk.Button(self.init_app(), text='Выход', command=self.quit)
+        self.exi_button.place(x=950, y=550)
+        self.exi_button.bind("<Button-1>")
+
+
 
 class WindowChildeAutorization(tk.Toplevel): #окно авторизации
     def __init__(self):
@@ -106,22 +160,50 @@ class WindowChildeAutorization(tk.Toplevel): #окно авторизации
 
     def init_button_autorization(self):
         self.login = self.entry_log.get()
+
         self.password = self.entry_pass.get()
+        self.action_entry = "Пользователь вошёл в систему"
+        self.action_exit = "Пользователь вышел из системы"
+        self.time = datetime.now()
+
 
         if len(self.login) == 0 or len(self.password) == 0:
-            messagebox.showinfo("d")
+            messagebox.showerror("Неправильный логин или пароль", "Введите правильный логин или пароль")
 
         self.db.cur.execute("SELECT login FROM guard_post WHERE login='%(login)s'" % {'login': self.login})
-        self.check_login = self.db.cur.fetchone()
+        self.check_login = self.db.cur.fetchall()
 
         self.db.cur.execute("SELECT password FROM guard_post WHERE password='%(password)s'" % {'password': self.password})
-        self.check_password = self.db.cur.fetchone()
+        self.check_password = self.db.cur.fetchall()
 
-        if self.check_login[0][0] == self.login and self.check_password[0][0] == self.password:
+        if self.check_login[0] == self.login and self.check_password[0] == self.password:
             self.destroy()
             self.root.deiconify()
-        elif self.check_login[0][0] != self.login and self.check_password[0][0] != self.password:
-            messagebox.showinfo("s")
+            self.query = (
+                    "INSERT INTO history_test " "(name, action, time) " "VALUES ('%(name)s', '%(action)s', '%(time)s')" % {
+                'name': self.login,
+                'action': self.action_entry,
+                'time': self.time
+            }
+            )
+            self.db.cur.execute(self.query)
+            self.db.conn.commit()
+            self.view.data_table_history_record()
+
+        else:
+            messagebox.showerror("")
+
+    def dddd(self):
+        while self.view.init_exit():
+            self.query = (
+                   "INSERT INTO history_test " "(name, action, time) " "VALUES ('%(name)s', '%(action)s', '%(time)s')" % {
+                'name': self.login,
+                'action': self.action_exit,
+               'time': self.time
+               }
+            )
+            self.db.cur.execute(self.query)
+            self.db.conn.commit()
 
 class WindowChildeAdd(tk.Toplevel): #окно добавления нового пользователя
     def __init__(self):
@@ -202,10 +284,6 @@ class DataBase:
                     'base': base})
         self.cur.execute(self.query, (name, num, base))
         self.conn.commit()
-
-    def data_table_delete(self):
-        pass
-
 
 if __name__ == "__main__":
     root = tk.Tk()
