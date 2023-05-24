@@ -1,10 +1,12 @@
-# import cv2
+#import cv2
 import psycopg2
 from config import host, user, password, db_name, port
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
 from datetime import datetime
+import num_detection
+from num_detection import num_plate
 
 
 class MainApp(tk.Frame): # главное окно
@@ -16,6 +18,7 @@ class MainApp(tk.Frame): # главное окно
         self.init_app()
         self.data_table_record()
         self.data_table_history_record()
+        self.history_admission()
 
 
     def init_app(self):
@@ -25,7 +28,10 @@ class MainApp(tk.Frame): # главное окно
         self.table_user_frame.place(x=35, y=40)
         self.table_history_frame = tk.Frame(self.notebook)
         self.table_history_frame.place(x=35, y=40)
-        self.notebook.add(self.table_history_frame, text='История')
+        self.table_history_addmission_frame = tk.Frame(self.notebook)
+        self.table_history_addmission_frame.place(x=35, y=40)
+        self.notebook.add(self.table_history_addmission_frame, text='История допуска')
+        self.notebook.add(self.table_history_frame, text='История авторизации')
         self.notebook.add(self.table_user_frame, text='Пользователи')
 
         self.button_add = tk.Button(self.table_user_frame, text="Добавить", command=self.open_dialog_add)
@@ -61,6 +67,18 @@ class MainApp(tk.Frame): # главное окно
         self.data_table_history.heading("Time", text="Время", anchor=tk.W)
         self.data_table_history.column("#4", width=510, stretch=tk.FALSE)
 
+        self.columns3 = ("ID", "Car", "Name", "Data")
+        self.data_table_history_addmission = ttk.Treeview(self.table_history_addmission_frame, columns=self.columns3, show="headings", height=15)
+        self.data_table_history_addmission.place(width=1020, height=400)
+        self.data_table_history_addmission.heading("ID", text="Номер", anchor=tk.W)
+        self.data_table_history_addmission.column("#1", width=100, stretch=tk.FALSE)
+        self.data_table_history_addmission.heading("Car", text="Номер автомобиля", anchor=tk.W)
+        self.data_table_history_addmission.column("#2", width=300, stretch=tk.FALSE)
+        self.data_table_history_addmission.heading("Name", text="ФИО пользователя", anchor=tk.W)
+        self.data_table_history_addmission.column("#3", width=400, stretch=tk.FALSE)
+        self.data_table_history_addmission.heading("Data", text="Дата", anchor=tk.W)
+        self.data_table_history_addmission.column("#4", width=500, stretch=tk.FALSE)
+
 
     def record(self, name, num, base):
         self.db.data_table_insert(name, num, base)
@@ -83,6 +101,33 @@ class MainApp(tk.Frame): # главное окно
             "SELECT id_act, name, action, time FROM history_test ORDER BY id_act ASC")
         [self.data_table_history.delete(i) for i in self.data_table_history.get_children()]
         [self.data_table_history.insert('', tk.END, values=row) for row in self.db.cur.fetchall()]
+
+    def data_table_history_addmission_record(self):
+        self.db.cur.execute(
+            "SELECT id_admission, num_car_plate, name, data FROM history_addmission_test ORDER BY id_admission ASC")
+        [self.data_table_history_addmission.delete(i) for i in self.data_table_history_addmission.get_children()]
+        [self.data_table_history_addmission.insert('', tk.END, values=row) for row in self.db.cur.fetchall()]
+        #self.history_admission()
+
+    def history_admission(self):
+        self.num_auto = num_plate
+        print(self.num_auto)
+        self.db.cur.execute("SELECT state_license_num FROM admission WHERE state_license_num='%(num)s'" % {'num': self.num_auto})
+        self.check_num_plate = self.db.cur.fetchall()
+        self.test = "test"
+        self.time = datetime.now()
+
+        self.query = ("INSERT INTO history_addmission_test " "(num_car_plate, name, data) " "VALUES ('%(num)s', '%(name)s', '%(data)s')" % {
+                'num': num_plate,
+                'name': self.test,
+                'data': self.time
+            })
+        self.db.cur.execute(self.query)
+        self.db.conn.commit()
+        self.data_table_history_addmission_record()
+        #print(self.num_auto)
+
+
 
     def data_table_history_entry_insert(self):
       #  self.au.init_button_autorization()
@@ -176,7 +221,7 @@ class WindowChildeAutorization(tk.Toplevel): #окно авторизации
         self.db.cur.execute("SELECT password FROM guard_post WHERE password='%(password)s'" % {'password': self.password})
         self.check_password = self.db.cur.fetchall()
 
-        if self.check_login[0] == self.login and self.check_password[0] == self.password:
+        if self.check_login[0][0] == self.login and self.check_password[0][0] == self.password:
             self.destroy()
             self.root.deiconify()
             self.query = (
@@ -190,8 +235,8 @@ class WindowChildeAutorization(tk.Toplevel): #окно авторизации
             self.db.conn.commit()
             self.view.data_table_history_record()
 
-        else:
-            messagebox.showerror("")
+        elif self.check_login[0] != self.login and self.check_password[0] != self.password:
+            messagebox.showerror("Неправильный логин или пароль", "Неправтльный логин или пароль, введите правильный логин или пароль")
 
     def dddd(self):
         while self.view.init_exit():
@@ -290,7 +335,7 @@ if __name__ == "__main__":
     db = DataBase()
     app = MainApp(root)
     autorization = WindowChildeAutorization()
-    root.title('Test')
+    root.title('Информационная система "Шлагбаум"')
     root.geometry('1020x600')
     root.resizable(False, False)
     root.withdraw()
